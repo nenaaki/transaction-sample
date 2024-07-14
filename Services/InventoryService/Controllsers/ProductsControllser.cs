@@ -11,10 +11,7 @@ public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
 
-    public ProductsController(IProductService productService)
-    {
-        _productService = productService;
-    }
+    public ProductsController(IProductService productService) => _productService = productService;
 
     // POST: api/Products
     [HttpPost]
@@ -31,9 +28,7 @@ public class ProductsController : ControllerBase
         var product = await _productService.UpdateProductAsync(id, updatedProduct);
 
         if (product == null)
-        {
-            return NotFound();
-        }
+            return Conflict("The product has been modified by another process.");
 
         return NoContent();
     }
@@ -45,9 +40,7 @@ public class ProductsController : ControllerBase
         var product = await _productService.GetProductAsync(id);
 
         if (product == null)
-        {
             return NotFound();
-        }
 
         return product;
     }
@@ -76,4 +69,3 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 }
-
