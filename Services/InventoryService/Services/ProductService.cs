@@ -1,9 +1,6 @@
-// Services/ProductService.cs
+using Microsoft.EntityFrameworkCore;
 using InventoryService.Models;
 using InventoryService.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using System;
 
 namespace InventoryService.Services;
 
@@ -13,6 +10,17 @@ public class ProductService : IProductService
 
     public ProductService(ProductContext context) => _context = context;
 
+    private void SetProductProperties(Product product, Product updatedProduct)
+    {
+        product.Name = updatedProduct.Name;
+        product.Description = updatedProduct.Description;
+        product.Price = updatedProduct.Price;
+        product.Quantity = updatedProduct.Quantity;
+        product.IsAvailable = updatedProduct.Quantity > 0;
+        product.UpdatedAt = DateTime.UtcNow;
+        product.Version = Ulid.NewUlid(); // Versionをインクリメント
+    }
+
     public async Task<Product> AddProductAsync(Product product)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -21,6 +29,7 @@ public class ProductService : IProductService
             product.IsAvailable = product.Quantity > 0;
             product.CreatedAt = DateTime.UtcNow;
             product.UpdatedAt = DateTime.UtcNow;
+            product.Version = Ulid.NewUlid(); // 初期Versionを設定
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -41,15 +50,10 @@ public class ProductService : IProductService
             var productId = Ulid.Parse(id);
             var product = await _context.Products.FindAsync(productId);
 
-            if (product == null)
-                return null;
+            if (product == null || product.Version != updatedProduct.Version)
+                return null; // バージョンが一致しない場合はnullを返す
 
-            product.Name = updatedProduct.Name;
-            product.Description = updatedProduct.Description;
-            product.Price = updatedProduct.Price;
-            product.Quantity = updatedProduct.Quantity;
-            product.IsAvailable = updatedProduct.Quantity > 0;
-            product.UpdatedAt = DateTime.UtcNow;
+            SetProductProperties(product, updatedProduct);
 
             _context.Entry(product).State = EntityState.Modified;
             await _context.SaveChangesAsync();
@@ -84,6 +88,7 @@ public class ProductService : IProductService
             product.Quantity += quantityChange;
             product.IsAvailable = product.Quantity > 0;
             product.UpdatedAt = DateTime.UtcNow;
+            product.Version = Ulid.NewUlid(); // Versionをインクリメント
 
             var inventoryHistory = new InventoryHistory
             {
@@ -126,6 +131,7 @@ public class ProductService : IProductService
             product.Quantity -= inventoryHistory.QuantityChange;
             product.IsAvailable = product.Quantity > 0;
             product.UpdatedAt = DateTime.UtcNow;
+            product.Version = Ulid.NewUlid(); // Versionをインクリメント
 
             _context.InventoryHistories.Remove(inventoryHistory);
             _context.Entry(product).State = EntityState.Modified;
@@ -140,3 +146,4 @@ public class ProductService : IProductService
         }
     }
 }
+
